@@ -20,6 +20,7 @@ Este trabajo práctico procesa un archivo de operaciones bursátiles y construye
 - `Oper`  
 - `Registro` para leer las líneas del archivo  
 - Listas enlazadas simples (`Nodo<T>`, `insertar_unico`, `insertar`, `agregar`)
+
 **Integrantes – Grupo 6**
 
 - Nahuel Medina
