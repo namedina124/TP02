@@ -13,15 +13,15 @@ Este trabajo práctico procesa un archivo de operaciones bursátiles y construye
 3. **Operaciones**  
    - Mantiene el orden original del archivo.
    - Informa: tipo de operación (Compra/Venta), acción y cantidad negociada.
+**Integrantes – Grupo 6**
 
-## 📄 **Estructuras utilizadas**
+- Nahuel Medina
+
+
+## **Estructuras utilizadas**
 - `Plazo`  
 - `Bolsa`  
 - `Oper`  
 - `Registro` para leer las líneas del archivo  
 - Listas enlazadas simples (`Nodo<T>`, `insertar_unico`, `insertar`, `agregar`)
-
-**Integrantes – Grupo 6**
-
-- Nahuel Medina
 
