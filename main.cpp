@@ -1,138 +1,97 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <string>
-#include <cstdlib>   // para abs()
+#include <cstring>
+#include <cstdlib>   // abs()
 #include "listas.hpp"
+
 using namespace std;
 
-// ======================================================================
-//                       REGISTRO LEÍDO DEL ARCHIVO
-// ======================================================================
+// =======================================================
+// REGISTRO DEL ARCHIVO BINARIO
+// =======================================================
 struct Registro {
-    string accion;
+    char accion[12];
     int plazo;
-    string bolsa;
+    char bolsa[14];
     float precio;
     int cantidad;
 };
 
-// ======================================================================
-//                           NIVEL 3 – OPERACIÓN
-// ======================================================================
-struct Oper {
-    string tipo;     // Cpra o Vta
-    string accion;
-    int cantidad;    // absoluta
+// =======================================================
+// NIVEL 3 – OPERACIÓN
+// =======================================================
+struct Operacion {
+    char tipo[5];     // "Cpra" o "Vta"
+    char accion[12];
+    int cantidad;     // absoluta
 };
 
-// ======================================================================
-//                           NIVEL 2 – BOLSA
-// ======================================================================
+// =======================================================
+// NIVEL 2 – BOLSA
+// =======================================================
 struct Bolsa {
-    string nombre;
-    double monto = 0;      // total absoluto
-    double resultado = 0;  // total con signo
-    Nodo<Oper>* ops = nullptr;
+    char nombre[14];
+    double monto;
+    double resultado;
+    Nodo<Operacion>* operaciones;
 };
 
 int critBolsa(Bolsa a, Bolsa b) {
-    return a.nombre.compare(b.nombre);
+    return strcmp(a.nombre, b.nombre);
 }
 
-// ======================================================================
-//                           NIVEL 1 – PLAZO
-// ======================================================================
+// =======================================================
+// NIVEL 1 – PLAZO
+// =======================================================
 struct Plazo {
-    int numero;         // 0,1,2,3
-    int compras = 0;
-    int ventas = 0;
-    Nodo<Bolsa>* bolsas = nullptr;
+    int codigo;
+    int compras;
+    int ventas;
+    Nodo<Bolsa>* bolsas;
 };
 
 int critPlazo(Plazo a, Plazo b) {
-    return a.numero - b.numero;
+    return a.codigo - b.codigo;
 }
 
-// ======================================================================
-//                   PARSEAR UNA LÍNEA DEL ARCHIVO
-// ======================================================================
-Registro parsearLinea(const string& linea) {
-    string accion, token, bolsa;
-    int plazo, cantidad;
-    float precio;
-
-    stringstream ss(linea);
-    ss >> accion;
-    ss >> token;
-
-    // Acción con espacios
-    while (!(isdigit(token[0]) || token[0]=='-')) {
-        accion += " " + token;
-        ss >> token;
-    }
-
-    plazo = stoi(token);
-    bolsa = "";
-
-    while (ss >> token) {
-        bool esPrecio = token.find('.') != string::npos;
-
-        if (esPrecio) {
-            precio = stof(token);
-            ss >> cantidad;
-            break;
-        } else {
-            if (!bolsa.empty()) bolsa += " ";
-            bolsa += token;
-        }
-    }
-
-    return Registro{accion, plazo, bolsa, precio, cantidad};
-}
-
-// ======================================================================
-//                           IMPRIMIR LISTADO FINAL
-// ======================================================================
+// =======================================================
+// MOSTRAR LISTADO
+// =======================================================
 void mostrarListado(Nodo<Plazo>* lp) {
+    while (lp) {
 
-    while (lp != nullptr) {
-
-        // Nombre del plazo
-        string nombrePlazo;
-        switch(lp->dato.numero) {
+        const char* nombrePlazo;
+        switch (lp->dato.codigo) {
             case 0: nombrePlazo = "CI"; break;
             case 1: nombrePlazo = "24Hs"; break;
             case 2: nombrePlazo = "48Hs"; break;
             case 3: nombrePlazo = "72Hs"; break;
         }
 
-        cout << endl;
-        cout << "Plazo: " << nombrePlazo
+        cout << "\nPlazo: " << nombrePlazo
              << ", Compras: " << lp->dato.compras
-             << ", Ventas: " << lp->dato.ventas << endl << endl;
+             << ", Ventas: " << lp->dato.ventas << "\n\n";
 
-        // NIVEL 2 —bolsas
         Nodo<Bolsa>* pb = lp->dato.bolsas;
-        while (pb != nullptr) {
-            cout << "Bolsa           Monto        Resultado" << endl;
+        while (pb) {
+
+            cout << "Bolsa           Monto      Resultado\n";
             cout << pb->dato.nombre << "   "
                  << pb->dato.monto << "   "
-                 << pb->dato.resultado << endl << endl;
+                 << pb->dato.resultado << "\n\n";
 
-            cout << "Oper  Acción      Cant." << endl;
-            cout << "-----------------------" << endl;
+            cout << "Oper  Acción      Cant.\n";
+            cout << "-----------------------\n";
 
-            // NIVEL 3 —operaciones
-            Nodo<Oper>* po = pb->dato.ops;
-            while (po != nullptr) {
+            Nodo<Operacion>* po = pb->dato.operaciones;
+            while (po) {
                 cout << po->dato.tipo << "   "
                      << po->dato.accion << "   "
-                     << po->dato.cantidad << endl;
+                     << po->dato.cantidad << "\n";
                 po = po->sig;
             }
 
-            cout << endl;
+            cout << "\n";
             pb = pb->sig;
         }
 
@@ -140,76 +99,65 @@ void mostrarListado(Nodo<Plazo>* lp) {
     }
 }
 
-//MAIN
+// =======================================================
+// MAIN
+// =======================================================
 int main() {
 
-    ifstream fs("salida.txt");
-    if (!fs.is_open()) {
-        cout << "No se pudo abrir el archivo." << endl;
+    ifstream arch("Datos.bin", ios::binary);
+    if (!arch) {
+        cout << "No se pudo abrir Datos.bin\n";
         return 1;
     }
 
-    string linea;
-
-    // Saltar encabezado
-    getline(fs, linea);
-    getline(fs, linea);
-
     Nodo<Plazo>* listaPlazos = nullptr;
+    Registro r;
 
-    cout << "=== REGISTROS LEÍDOS ===" << endl << endl;
+    cout << "=== REGISTROS LEÍDOS ===\n\n";
 
-    // =====================================================
-    //          PUNTO 1 + PUNTO 2 COMPLETOS
-    // =====================================================
-    while (getline(fs, linea)) {
-        if (linea.empty()) continue;
+    while (arch.read((char*)&r, sizeof(Registro))) {
 
-        Registro reg = parsearLinea(linea);
+        // PUNTO 1 – Mostrar registro
+        cout << r.accion << " | Plazo: " << r.plazo
+             << " | Bolsa: " << r.bolsa
+             << " | Precio: " << r.precio
+             << " | Cant: " << r.cantidad << endl;
 
-        // Mostrar registro (Punto 1)
-        cout << reg.accion << " | Plazo: " << reg.plazo
-             << " | Bolsa: " << reg.bolsa
-             << " | Precio: " << reg.precio
-             << " | Cant: " << reg.cantidad << endl;
-
-        //ARMADO DE ESTRUCTURAS
-
-        // NIVEL 1— PLAZO
-        Plazo p;
-        p.numero = reg.plazo;
+        // NIVEL 1 – PLAZO
+        Plazo p = { r.plazo, 0, 0, nullptr };
         Nodo<Plazo>* nodoPlazo = insertar_unico(p, listaPlazos, critPlazo);
 
-        if (reg.cantidad > 0) nodoPlazo->dato.ventas++;
+        if (r.cantidad > 0) nodoPlazo->dato.ventas++;
         else nodoPlazo->dato.compras++;
 
-        // NIVEL 2— BOLSA
+        // NIVEL 2 – BOLSA
         Bolsa b;
-        b.nombre = reg.bolsa;
-        Nodo<Bolsa>* nodoBolsa = insertar_unico(b, nodoPlazo->dato.bolsas, critBolsa);
+        strcpy(b.nombre, r.bolsa);
+        b.monto = 0;
+        b.resultado = 0;
+        b.operaciones = nullptr;
 
-        double absMonto = reg.precio * abs(reg.cantidad);
-        double signedMonto = reg.precio * reg.cantidad;
+        Nodo<Bolsa>* nodoBolsa =
+            insertar_unico(b, nodoPlazo->dato.bolsas, critBolsa);
 
+        double absMonto = r.precio * abs(r.cantidad);
         nodoBolsa->dato.monto += absMonto;
-        nodoBolsa->dato.resultado += signedMonto;
+        nodoBolsa->dato.resultado += r.precio * r.cantidad;
 
-        // NIVEL 3— OPERACIÓN
-        Oper op;
-        op.tipo = (reg.cantidad > 0 ? "Vta" : "Cpra");
-        op.accion = reg.accion;
-        op.cantidad = abs(reg.cantidad);
+        // NIVEL 3 – OPERACIÓN
+        Operacion op;
+        strcpy(op.accion, r.accion);
+        op.cantidad = abs(r.cantidad);
+        strcpy(op.tipo, r.cantidad > 0 ? "Vta" : "Cpra");
 
-        agregar(nodoBolsa->dato.ops, op); // mantiene el orden del archivo
+        agregar(nodoBolsa->dato.operaciones, op); // mismo orden del archivo
     }
 
-    fs.close();
+    arch.close();
 
-    // =====================================================
-    //                   EMITIR LISTADO FINAL
-    // =====================================================
-    cout << endl << "=== LISTADO FINAL (3 NIVELES) ===" << endl;
+    cout << "\n=== LISTADO FINAL ===\n";
     mostrarListado(listaPlazos);
 
     return 0;
 }
+
